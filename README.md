@@ -52,6 +52,19 @@ ill-defined, so the checkbox is disabled when a citation has more than one item.
 **Possessives are manual.** Type the `'s` in `Smith's (2020) study` outside the
 citation field.
 
+**References without an author may not work as narrative citations.** In some
+less common styles, a narrative citation of a reference with no author (a web
+page with no byline, say, or a book with only editors) shows
+`[NO_PRINTED_FORM]` or repeats the year. The styles bundled with Zotero are not
+affected. Add the author to the reference in Zotero, or use an ordinary
+citation.
+
+**A few less common styles are wrongly offered.** Styles whose in-text
+citations show no year cannot have narrative citations, and the checkbox is
+normally disabled for them. A handful are not recognised — among them Chicago's
+"in-text, shortened author" variants — and render `[NO_PRINTED_FORM]` in place
+of the year. Use ordinary citations with those styles.
+
 **Only tested on macOS with Word.** Nothing in the plugin is
 platform-specific — it patches Zotero's integration layer, which sits above the
 word-processor shims, so Windows, LibreOffice and Google Docs should work. But
