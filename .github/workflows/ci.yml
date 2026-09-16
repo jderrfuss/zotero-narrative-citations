@@ -34,7 +34,17 @@ jobs:
           name: build-result
           path: scaffold/build
 
-# No test job yet. `zotero-plugin test` drives a real Zotero instance, and this
-# project's verification is a set of scripts under scripts/ run by hand against
-# Word (see MILESTONE-RESULTS.md). Add a job here once there is a headless
-# suite for it to run.
+  # Offline tests: <intext> synthesis, style capability, the narrative flag and
+  # the fallback guard, against citeproc-js without Zotero. Word, the citation
+  # dialog and Zotero's own internals are not covered here; they are checked by
+  # hand (see MILESTONE-RESULTS.md). `npm test` is Zotero's own runner, which
+  # needs a real Zotero instance, so it is not run in CI.
+  test-offline:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
+    steps:
+      - name: Setup JS
+        uses: zotero-plugin-dev/workflows/setup-js@main
+      - name: Run offline tests
+        run: npm run test:offline

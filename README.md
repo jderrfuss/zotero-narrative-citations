@@ -151,9 +151,17 @@ only.
 
 ```bash
 npm install
-npm run build    # -> scaffold/build/narrative-citations.xpi
-npm start        # hot-reload dev server (needs .env, see .env.example)
+npm run build          # -> scaffold/build/narrative-citations.xpi
+npm run test:offline   # automated tests, no Zotero needed
+npm start              # hot-reload dev server (needs .env, see .env.example)
 ```
+
+`npm run test:offline` runs the tests in `test-offline/` against citeproc-js
+1.4.61, the version inside Zotero 10.0.2, with the styles bundled with Zotero as
+fixtures. They cover `<intext>` synthesis, style detection, exact narrative
+output for every supported bundled style, and the fallback guard. They do not
+cover Word, the citation dialog or Zotero's internals; those are still checked
+by hand.
 
 `npm run build` also runs `tools/check-manifest.mjs`, which asserts the manifest
 rules Zotero enforces — it reports every manifest defect as the same unhelpful
