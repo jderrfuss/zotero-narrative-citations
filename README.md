@@ -169,6 +169,10 @@ rules Zotero enforces — it reports every manifest defect as the same unhelpful
 
 Anything needing Zotero's runtime is a script in `scripts/`, pasted into
 **Tools → Developer → Run JavaScript** with "Run as async function" ticked.
+Before a release, and after any Zotero update, run `scripts/regression.js`: it
+checks the plugin inside Zotero, warns if Zotero code the plugin depends on has
+changed, and prints a checklist of steps to repeat in Word. The other scripts
+there are records of individual milestones.
 
 ## Build order
 
