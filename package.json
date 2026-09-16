@@ -35,7 +35,7 @@
     "@zotero-plugin/eslint-config": "^0.6.7",
     "chai": "^6.2.1",
     "citeproc": "2.4.63",
-    "eslint": "^9.39.2",
+    "eslint": "^10.10.0",
     "mocha": "^11.7.5",
     "prettier": "^3.7.4",
     "tsx": "4.23.13",
