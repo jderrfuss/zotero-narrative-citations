@@ -130,9 +130,9 @@ Mitigation, in the patch itself: the `toJSON` wrapper is a **validating gate** â
 only the literal string `"composite"` is ever written back. A stranded transient
 value is dropped and the citation is saved as an ordinary one. That is a silent
 loss of the flag, accepted because the trigger (citeproc throwing mid-render) has
-not been observed. Note that the dialog's checkbox (`isNarrative()`) does count
-the transient values as narrative, so in that case it would show ticked while
-Accept saves an ordinary citation. See `modeToPersist()` in
+not been observed. The dialog's checkbox (`isNarrative()`) counts only the value
+the gate saves, so it shows such a citation unticked rather than contradicting
+what Accept will save; ticking it restores the flag. See `modeToPersist()` in
 `src/modules/narrative.ts`; results B2/B3 in `scripts/m2-join.js` check that the
 value is dropped, not that it cannot occur.
 

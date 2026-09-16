@@ -473,6 +473,10 @@ installed. Fixes on branch `audit-fixes`.
 | `6edba12` | APA personal communications printed the phrase twice: `S. Lee, personal communication (personal communication, 2018)`.                                                             | Letter and Interview items render `S. Lee (personal communication, 2018)` form; an interview with a URL is unchanged. Offline: no regressions. |
 | `e3b9956` | Refresh merged a parenthetical citation typed directly before a narrative one into a saved narrative citation of two works.                                                        | Refresh now produces an ordinary two-item citation with no flag in the field code.                                                             |
 
+Also changed without a Word-level trigger to test against: the dialog's
+checkbox used to count citeproc's transient mode values as narrative, which the
+saved field does not. It now counts only the saved value (DECISIONS.md §1).
+
 **Observed, not changed.**
 
 - On Word for Mac, citations are merged on Refresh only when nothing at all is
@@ -491,7 +495,6 @@ installed. Fixes on branch `audit-fixes`.
 - A real startup race after the startup fix, and the rebuild's wait for a
   running Word command.
 - Windows, LibreOffice, Google Docs, and delayed citation updates.
-- Two theoretical issues left open: the flag raised while building an engine is
-  a single boolean, so overlapping engine builds could clear it early; and the
-  dialog's checkbox counts citeproc's transient mode values as narrative while
-  the saved field does not.
+- One theoretical issue left open: the flag raised while building an engine is
+  a single boolean, so overlapping engine builds could clear it early (see the
+  comment in `styleEngine.ts`).
