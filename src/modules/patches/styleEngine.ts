@@ -291,6 +291,45 @@ export function installStyleEnginePatches(): void {
   });
 }
 
+/**
+ * Rebuild the engines of integration sessions that already exist, so they go
+ * through the patched path.
+ *
+ * A session keeps its engine until its style changes, a style is installed or
+ * updated, or Zotero restarts -- a Refresh does not rebuild it. So an engine
+ * built before the patches were installed stays unpatched: no <intext> (APA
+ * narrative citations render "&" instead of "and") and no fallback guard
+ * (unsupported styles render [NO_PRINTED_FORM]). That happens when a Word
+ * command arrives during Zotero startup before this plugin has started, and
+ * when the plugin is installed, enabled or upgraded while a document is open.
+ * It also replaces engines carrying a previous plugin version's guard.
+ *
+ * Same call Zotero makes itself after a style update
+ * (Zotero.Integration.resetSessionStyles, integration.js:225). Never swaps an
+ * engine under a running command: waits for it to finish first, and re-checks
+ * before each session in case another has started.
+ */
+export async function rebuildExistingIntegrationEngines(): Promise<void> {
+  const Integration = (Zotero as any)?.Integration;
+  if (!Integration?.sessions) return;
+
+  for (const session of Object.values(Integration.sessions) as any[]) {
+    while (Integration.currentDoc) {
+      await Integration.currentCommandPromise;
+    }
+    // Uninstalled while waiting: a rebuild now would produce a stock engine.
+    if (!setDataHelper) return;
+    if (!session?.data?.style?.styleID) continue;
+    try {
+      await session.setData(session.data, true);
+    } catch (e) {
+      // setData logs and throws for a style that is no longer installed; the
+      // session keeps its old engine, as it would in Zotero's own reset.
+      Zotero.logError(e as Error);
+    }
+  }
+}
+
 export function uninstallStyleEnginePatches(): void {
   setDataHelper?.unpatch();
   setDataHelper = undefined;

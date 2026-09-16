@@ -39,6 +39,13 @@ revert to ordinary parentheticals on the next Refresh, silently. This follows
 from Zotero rewriting field codes from a fixed allowlist and cannot be worked
 around from a plugin. If you have co-authors, you all need it installed.
 
+**Let Zotero finish starting before you use it from Word.** Zotero accepts
+commands from Word a few seconds before it loads plugins — longer if other
+plugins load first. A Refresh in that window runs without this plugin and
+reverts the narrative citations it touches, as above. Once the plugin has
+loaded, a Refresh puts right anything else that window affected, such as
+narrative citations shown with `&` instead of "and".
+
 **Single references only.** A narrative citation of several works at once is
 ill-defined, so the checkbox is disabled when a citation has more than one item.
 
