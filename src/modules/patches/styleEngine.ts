@@ -40,8 +40,9 @@
  * duration of the original call. `getCiteProc` contains no `await`
  * (verified against 10.0.2), so the override is installed and removed within a
  * single synchronous turn and no other code can observe it. Nothing is left
- * behind on any prototype, so there is no dead-object hazard when the plugin
- * sandbox is torn down.
+ * behind on any prototype. (Zotero 10.0.2 does not destroy a plugin's sandbox
+ * when the plugin is disabled, so functions left behind would keep working;
+ * a later version might.)
  *
  * `_eventToEventTitle` still runs afterwards; it only rewrites elements
  * matching `[variable*="event"]`, so a synthesized <intext> passes through it
@@ -61,7 +62,17 @@
  * for. That is accepted deliberately: an <intext> block is inert unless a
  * cluster sets `properties.mode`, and SPIKE-RESULTS confirmed parenthetical
  * output is unchanged by its presence -- so the flag buys narrowness without
- * correctness depending on it.
+ * correctness depending on it. In practice the window is only open while
+ * styles are still loading; after that the await settles within the same turn.
+ *
+ * What that argument does not cover (neither has been observed):
+ *  - A caller asking for a cached engine inside the window (Quick Copy, the
+ *    item pane) would also get the fallback guard if its style is unsupported,
+ *    and keep it in Zotero's engine cache.
+ *  - The flag is a single boolean. Overlapping setData calls -- e.g. Zotero's
+ *    resetSessionStyles after a style update, during a Word command -- could
+ *    clear it while another call is still waiting, and that session would get
+ *    an engine with no <intext> and no fallback guard.
  *
  * Note too that the integration's `getCiteProc` call passes no `cache` option,
  * so `cacheKey` is null and the engine never enters
@@ -157,9 +168,14 @@ export function getSessionCapability(
  * method feeds both the processor and the field write-back, and cannot tell
  * them apart. An engine instance can -- and every render route
  * (`_updateCitations`, `restoreProcessorState`, and the dialog's live preview
- * via `previewCitationCluster`) funnels through this one method.
+ * via `previewCitationCluster`) funnels through this one method. citeproc's
+ * own re-rendering of citations it already holds does not, which is why what
+ * it holds must be the stripped copy (see below).
  *
- * Instance-level, so no prototype is touched and nothing survives teardown.
+ * Instance-level, so no prototype is touched. The guard does outlive the
+ * plugin: it stays on the engine until the engine is rebuilt. That is
+ * deliberate -- without it, flagged citations under unsupported styles would
+ * render [NO_PRINTED_FORM] (DECISIONS.md §4).
  */
 function installFallbackGuard(engine: any, capability: StyleCapability): void {
   if (!engine || capability.supported) return;

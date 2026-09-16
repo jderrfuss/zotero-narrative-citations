@@ -24,7 +24,8 @@
  * in place ("author-only" -> "suppress-author" -> back to "composite"). A throw
  * mid-render could leave a live Citation carrying a transient value. The
  * toJSON patch therefore acts as a validating gate: only the literal string
- * "composite" is ever written back to the document.
+ * "composite" is ever written back to the document, and only for a citation
+ * with a single item.
  */
 
 /** The only value of `properties.mode` this plugin ever persists. */

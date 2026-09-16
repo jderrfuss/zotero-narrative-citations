@@ -31,10 +31,14 @@
  * Hence: clone the style's own names-bearing macro, push inheritable
  * attributes down onto the clone's <name> elements, flip `and="symbol"` to
  * `and="text"`, and point a new <intext> at the clone. Derived from the
- * style's own markup, so it is style-agnostic rather than APA-specific -- and
- * because it clones the style's real substitute chain (for APA: composer →
- * author → illustrator → … → editor → title), it handles films, podcasts and
- * edited volumes that a hand-written <intext> would get wrong.
+ * style's own markup, so it is not hard-coded for APA -- and because it clones
+ * the style's real substitute chain (for APA: composer → author → illustrator
+ * → … → editor → title), it is meant to handle films, podcasts and edited
+ * volumes that a hand-written <intext> would get wrong. Checked offline for
+ * APA with edited volumes and authorless items, not with films or podcasts.
+ * Some less common styles handle authorless items outside the names macro, and
+ * a few choose between name macros by item type; for those the clone renders
+ * nothing for some items. Measured and accepted: DECISIONS.md §6.
  */
 
 const CSL_NS = "http://purl.org/net/xbiblio/csl";

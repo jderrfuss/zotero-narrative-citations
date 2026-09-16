@@ -13,24 +13,24 @@ checkbox, which renders `(2025)` and leaves you to type the names yourself — s
 they aren't linked to the item, go stale when the reference changes, and get
 APA's `&`/`and` rule wrong unless you remember it.
 
-> **Status: pre-alpha, proof of concept.** It works, and it has been tested, but
-> only on macOS with Word, and only by one person. Do not point it at a
-> manuscript you care about without a backup.
+> **Status: pre-alpha, proof of concept.** It works, and it has been tested and
+> audited, but only on macOS with Word, and only by one person. Do not point it
+> at a manuscript you care about without a backup.
 
 ## What it does
 
 - Adds a **Narrative citation** checkbox to the citation dialog, next to
   Omit Author.
 - Renders through citeproc-js's `composite` mode, so et al. thresholds, locators,
-  and given-name and year-suffix disambiguation all behave exactly as they do in
-  your normal citations.
+  and given-name and year-suffix disambiguation follow the same rules as your
+  normal citations. (Checked for APA.)
 - Gets APA 7's ampersand rule right: `&` inside parentheses, the word `and` in
   narrative form. It does this by synthesizing a CSL `<intext>` element at
-  runtime from the active style's own name macro — so it is not APA-specific and
-  needs no modified style files.
+  runtime from the active style's own name macro, rather than hard-coding APA,
+  so it needs no modified style files.
 - Falls back silently to an ordinary parenthetical citation for styles that
   can't support narrative citations, and disables the checkbox with an
-  explanation.
+  explanation. A citation already marked narrative can still be unticked.
 
 ## Limitations, up front
 
@@ -47,7 +47,11 @@ loaded, a Refresh puts right anything else that window affected, such as
 narrative citations shown with `&` instead of "and".
 
 **Single references only.** A narrative citation of several works at once is
-ill-defined, so the checkbox is disabled when a citation has more than one item.
+ill-defined, so the checkbox is disabled when a citation has more than one item,
+and a citation that gains a second item becomes an ordinary citation. That
+includes Zotero's Refresh merging two citations typed with nothing between them
+— so a narrative citation typed directly against another citation, without a
+space, is merged into it and loses its narrative form.
 
 **Possessives are manual.** Type the `'s` in `Smith's (2020) study` outside the
 citation field.
@@ -74,8 +78,9 @@ is a genuinely separate problem: composite mode is not supported by
 
 ## Supported styles
 
-Any author-date style whose in-text citation names authors and shows a year.
-Of the 15 styles shipped with Zotero, 6 qualify:
+Author-date styles whose in-text citations name authors and show a year. The
+plugin decides this automatically from the style. Of the 15 styles shipped with
+Zotero, 6 qualify, and those six have been checked:
 
 | Supported                                                                                                                                            | Not supported                                                                                                                              |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -85,10 +90,14 @@ Unsupported styles aren't broken, just unavailable: the checkbox is disabled
 with the reason, and any citation already flagged renders as an ordinary
 parenthetical. The flag stays in the document, so switching back restores it.
 
+The detection also runs for the thousands of other styles you can install. In
+an offline check against the CSL styles repository it was right for most of
+them, but see the limitations above for the less common styles it gets wrong.
+
 ## Install
 
 Download the `.xpi` from Releases, then in Zotero:
-**Tools → Add-ons → gear icon → Install Add-on From File…**
+**Tools → Plugins → gear icon → Install Plugin From File…**
 
 ### Or build it yourself
 
@@ -104,9 +113,11 @@ npm run build
 That produces `scaffold/build/narrative-citations.xpi`, which you install the
 same way.
 
-Requires **Zotero 10.x**. The version pin is deliberately narrow — a Zotero
-update should disable this plugin rather than run unverified patches against
-your manuscript.
+Requires **Zotero 10.x**. The version pin is deliberately narrow: a move to
+Zotero 11 disables this plugin rather than running unverified patches against
+your manuscript. Updates within 10.x do not disable it. At startup the plugin
+only checks that the internals it patches still exist, not that they still
+behave the same.
 
 ## Use
 
@@ -132,8 +143,9 @@ per-item `author-only` slot, and for the code paths the choice depends on.
 
 No official extension point exists for Zotero's integration pipeline, so this
 patches core internals — four of them, each documented in place with the source
-line it targets. Expect breakage at some Zotero release; that's what the version
-pin is for.
+line it targets — and wraps two functions inside the citation dialog. Expect
+breakage at some Zotero release; the version pin guards against major releases
+only.
 
 ## Development
 
@@ -152,21 +164,26 @@ Anything needing Zotero's runtime is a script in `scripts/`, pasted into
 
 ## Build order
 
-|     | Step                                                | Status                          |
-| --- | --------------------------------------------------- | ------------------------------- |
-| 1   | Scaffold, version pinning                           | done                            |
-| 2   | The join: flag → processor → Word, survives refresh | **done** — 13/13                |
-| 3   | Field persistence                                   | done                            |
-| 4   | Citation dialog UI                                  | **done** — 5/5 plus sweep S1–S4 |
-| 5   | `<intext>` synthesis (the APA ampersand)            | **done** — 9/9                  |
-| 6   | Style capability detection, silent fallback         | **done** — 8/8                  |
+|     | Step                                                | Status |
+| --- | --------------------------------------------------- | ------ |
+| 1   | Scaffold, version pinning                           | done   |
+| 2   | The join: flag → processor → Word, survives refresh | done   |
+| 3   | Field persistence                                   | done   |
+| 4   | Citation dialog UI                                  | done   |
+| 5   | `<intext>` synthesis (the APA ampersand)            | done   |
+| 6   | Style capability detection, silent fallback         | done   |
+| 7   | Pre-release audit and fixes                         | done   |
+
+What each step's checks did and did not establish is in
+[MILESTONE-RESULTS.md](MILESTONE-RESULTS.md), including where they were weaker
+than their pass counts suggest.
 
 ## Documents
 
 |                                              |                                                                                      |
 | -------------------------------------------- | ------------------------------------------------------------------------------------ |
 | [MILESTONE-RESULTS.md](MILESTONE-RESULTS.md) | What has been verified in the plugin, milestone by milestone, including what hasn't. |
-| [DECISIONS.md](DECISIONS.md)                 | Storage slot, multi-item policy, version pinning.                                    |
+| [DECISIONS.md](DECISIONS.md)                 | Storage slot, multi-item policy, version pinning, rendering fallback, startup.       |
 | [SPIKE-RESULTS.md](SPIKE-RESULTS.md)         | What was verified before building, and what the original brief got wrong.            |
 
 ## Licence
