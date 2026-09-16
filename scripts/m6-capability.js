@@ -51,7 +51,7 @@ try {
 		log('  toJSON patched  :', addon.data.patched);
 		log('  intext patched  :', addon.data.intextPatched);
 		log('  assessStyle     :', typeof addon.api.assessStyle === 'function');
-		log('  getLastCapability:', typeof addon.api.getLastCapability === 'function');
+		log('  getSessionCapability:', typeof addon.api.getSessionCapability === 'function');
 		if (typeof addon.api.assessStyle !== 'function') {
 			log('!! Old build still loaded. Install the new XPI and restart Zotero.');
 		}
@@ -214,7 +214,7 @@ try {
 	log('RESULT F4 — renders narrative under APA:',
 		apaState[TARGET_FIELD].text.indexOf(' and ') !== -1 &&
 		!apaState[TARGET_FIELD].text.trim().startsWith('('));
-	const cap = addon.api.getLastCapability();
+	const cap = addon.api.getSessionCapability();
 	log('active style capability:', cap && cap.supported, '-', cap && cap.reason);
 } catch (e) { fail('PHASE 2', e); }
 
@@ -238,7 +238,7 @@ try {
 	const now = await readFields();
 	describe(now, 'CURRENT');
 	const t = now[TARGET_FIELD];
-	const cap = addon.api.getLastCapability();
+	const cap = addon.api.getSessionCapability();
 	log('');
 	log('active style capability:', cap && cap.supported, '-', cap && cap.reason);
 	log('');

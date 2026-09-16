@@ -14,7 +14,6 @@ import {
   uninstallStyleEnginePatches,
   rebuildExistingIntegrationEngines,
   getLastSynthesis,
-  getLastCapability,
 } from "./modules/patches/styleEngine";
 
 async function onStartup() {
@@ -107,5 +106,4 @@ export default {
   onMainWindowUnload,
   narrative,
   getLastSynthesis,
-  getLastCapability,
 };

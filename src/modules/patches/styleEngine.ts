@@ -88,18 +88,59 @@ let buildingIntegrationEngine = false;
 let lastSynthesis: (SynthesisResult & { when: string }) | undefined;
 
 /**
- * Whether the style the integration session is currently using can support
- * narrative citations at all. Read by the citation dialog to decide whether to
- * enable the checkbox, and by the fallback guard below.
+ * Whether each integration engine's style can support narrative citations, as
+ * assessed when the engine was built -- the same value its fallback guard was
+ * installed with.
+ *
+ * Per engine, not one module-level value: every open document has its own
+ * session and engine, and any of them (or Zotero's resetSessionStyles after a
+ * style update) can build an engine at any time. A single "last" value made
+ * the checkbox in one document reflect whichever document's style was built
+ * most recently.
  */
-let lastCapability: StyleCapability | undefined;
+const capabilityByEngine = new WeakMap<object, StyleCapability>();
 
 export function getLastSynthesis() {
   return lastSynthesis;
 }
 
-export function getLastCapability() {
-  return lastCapability;
+/**
+ * Can the style of this integration session support narrative citations?
+ *
+ * Read by the citation dialog for the session whose command opened it. Returns
+ * what the session's engine was built with, so the checkbox and the fallback
+ * guard cannot disagree. For an engine built without these patches -- before
+ * plugin startup, or not yet reached by rebuildExistingIntegrationEngines --
+ * assesses the session's style directly instead.
+ */
+export function getSessionCapability(
+  session: any,
+): StyleCapability | undefined {
+  const engine = session?.style;
+  if (engine) {
+    const known = capabilityByEngine.get(engine);
+    if (known) return known;
+  }
+
+  const styleID = session?.data?.style?.styleID;
+  if (!styleID) return undefined;
+  try {
+    const style = (Zotero as any).Styles.get(styleID);
+    if (!style) {
+      return {
+        supported: false,
+        code: "error",
+        reason: `style ${styleID} is not installed`,
+      };
+    }
+    return assessStyle(style.getXML());
+  } catch (e) {
+    return {
+      supported: false,
+      code: "error",
+      reason: `could not read style: ${(e as Error).message}`,
+    };
+  }
 }
 
 /**
@@ -172,10 +213,18 @@ function installFallbackGuard(engine: any, capability: StyleCapability): void {
  * Run `fn` with the style instance's `getXML` temporarily returning XML that
  * carries a synthesized <intext>. Installed and removed within one synchronous
  * turn, so nothing else can observe it and nothing is left on any prototype.
+ *
+ * Also returns the capability assessed from that XML, or undefined if `fn`
+ * never read it (e.g. a cached engine was returned).
  */
-function withSynthesizedXML<T>(Style: any, style: any, fn: () => T): T {
+function withSynthesizedXML<T>(
+  Style: any,
+  style: any,
+  fn: () => T,
+): { value: T; capability: StyleCapability | undefined } {
   const hadOwn = Object.prototype.hasOwnProperty.call(style, "getXML");
   const previous = style.getXML;
+  let capability: StyleCapability | undefined;
 
   style.getXML = function (this: any, ...xmlArgs: unknown[]) {
     const xml = (hadOwn ? previous : Style.prototype.getXML).apply(
@@ -185,14 +234,14 @@ function withSynthesizedXML<T>(Style: any, style: any, fn: () => T): T {
     // Never throws; on failure it returns its input unchanged, so a style we
     // cannot handle falls back to the no-<intext> rendering rather than
     // breaking citations.
-    lastCapability = assessStyle(xml);
+    capability = assessStyle(xml);
     const result = synthesizeIntext(xml);
     lastSynthesis = { ...result, when: new Date().toISOString() };
     return result.xml;
   };
 
   try {
-    return fn();
+    return { value: fn(), capability };
   } finally {
     if (hadOwn) {
       style.getXML = previous;
@@ -266,26 +315,35 @@ export function installStyleEnginePatches(): void {
           // author-date style that composite mode handles at 9/10
           // (SPIKE-RESULTS §4.8). Assess it anyway so the guard and the
           // dialog agree.
+          let legacyCapability: StyleCapability;
           try {
-            lastCapability = assessStyle(this.getXML());
+            legacyCapability = assessStyle(this.getXML());
           } catch (e) {
-            lastCapability = {
+            legacyCapability = {
               supported: false,
+              code: "error",
               reason: `could not read style: ${(e as Error).message}`,
             };
           }
           const legacyEngine = original.apply(this, args);
-          installFallbackGuard(legacyEngine, lastCapability);
+          installFallbackGuard(legacyEngine, legacyCapability);
+          if (legacyEngine)
+            capabilityByEngine.set(legacyEngine, legacyCapability);
           return legacyEngine;
         }
 
-        const engine = withSynthesizedXML(Style, this, () =>
-          original.apply(this, args),
+        const { value: engine, capability } = withSynthesizedXML(
+          Style,
+          this,
+          () => original.apply(this, args),
         );
-        installFallbackGuard(
-          engine,
-          lastCapability ?? { supported: true, reason: "not assessed" },
-        );
+        // Not assessed means getXML was never read, so nothing was synthesized
+        // either: leave the engine unguarded and unrecorded, and let
+        // getSessionCapability assess the style if the dialog asks.
+        if (engine && capability) {
+          installFallbackGuard(engine, capability);
+          capabilityByEngine.set(engine, capability);
+        }
         return engine;
       },
   });
@@ -336,5 +394,4 @@ export function uninstallStyleEnginePatches(): void {
   getCiteProcHelper?.unpatch();
   getCiteProcHelper = undefined;
   buildingIntegrationEngine = false;
-  lastCapability = undefined;
 }

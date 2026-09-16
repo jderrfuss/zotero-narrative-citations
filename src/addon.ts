@@ -5,7 +5,7 @@ import * as narrative from "./modules/narrative";
 import type { DialogProbe } from "./modules/dialog";
 import {
   getLastSynthesis,
-  getLastCapability,
+  getSessionCapability,
 } from "./modules/patches/styleEngine";
 import { synthesizeIntext, assessStyle } from "./modules/intext";
 
@@ -48,8 +48,13 @@ class Addon {
     synthesizeIntext: typeof synthesizeIntext;
     /** Can a given style XML support narrative citations, and if not why not. */
     assessStyle: typeof assessStyle;
-    /** Capability of the style the integration session is currently using. */
-    getLastCapability: typeof getLastCapability;
+    /**
+     * Can this integration session's style support narrative citations?
+     * Defaults to the session of the Word command currently running.
+     */
+    getSessionCapability: (
+      session?: any,
+    ) => ReturnType<typeof getSessionCapability>;
   };
 
   constructor() {
@@ -72,7 +77,10 @@ class Addon {
       getLastSynthesis,
       synthesizeIntext,
       assessStyle,
-      getLastCapability,
+      getSessionCapability: (session?: any) =>
+        getSessionCapability(
+          session ?? (Zotero as any).Integration?.currentSession,
+        ),
     };
   }
 }
