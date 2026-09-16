@@ -31,10 +31,14 @@
  * Hence: clone the style's own names-bearing macro, push inheritable
  * attributes down onto the clone's <name> elements, flip `and="symbol"` to
  * `and="text"`, and point a new <intext> at the clone. Derived from the
- * style's own markup, so it is style-agnostic rather than APA-specific -- and
- * because it clones the style's real substitute chain (for APA: composer →
- * author → illustrator → … → editor → title), it handles films, podcasts and
- * edited volumes that a hand-written <intext> would get wrong.
+ * style's own markup, so it is not hard-coded for APA -- and because it clones
+ * the style's real substitute chain (for APA: composer → author → illustrator
+ * → … → editor → title), it is meant to handle films, podcasts and edited
+ * volumes that a hand-written <intext> would get wrong. Checked offline for
+ * APA with edited volumes and authorless items, not with films or podcasts.
+ * Some less common styles handle authorless items outside the names macro, and
+ * a few choose between name macros by item type; for those the clone renders
+ * nothing for some items. Measured and accepted: DECISIONS.md §6.
  */
 
 const CSL_NS = "http://purl.org/net/xbiblio/csl";
@@ -86,6 +90,21 @@ function tagged(root: any, name: string): any[] {
 
 function first(root: any, name: string): any {
   return tagged(root, name)[0];
+}
+
+const localName = (node: any): string => node?.localName ?? node?.nodeName;
+
+/**
+ * Is `node` a direct child of a <group> that also directly contains a <names>
+ * element? Such a node is wording shown alongside the names, as in APA's
+ * `<group delimiter=", "><names .../><text term="personal-communication"/></group>`.
+ */
+function accompaniesNames(node: any): boolean {
+  const parent = node.parentNode;
+  if (localName(parent) !== "group") return false;
+  return Array.from(parent.childNodes).some(
+    (child: any) => child.nodeType === 1 && localName(child) === "names",
+  );
 }
 
 /**
@@ -360,6 +379,34 @@ export function synthesizeIntext(xml: string): SynthesisResult {
     const cloneName = `${found.name}--zotero-narrative-intext`;
     clone.setAttribute("name", cloneName);
 
+    // Drop literal wording that sits beside the names rather than inside them.
+    // In composite mode the <intext> renders the part before the parentheses
+    // and the citation renders the rest with the author suppressed; wording
+    // grouped with the names in the citation area already appears in that
+    // second part, so keeping it in the clone prints it twice. APA's in-text
+    // format for personal communications is the case in point: its names macro
+    // renders "S. Lee, personal communication", which gave
+    // "S. Lee, personal communication (personal communication, 2018)".
+    //
+    // Only `term` and `value` text *accompanying* names is removed: a direct
+    // child of a <group> that also directly contains a <names>. Everything
+    // else stays --
+    //  - macro and variable references, because some item types are named by
+    //    something other than a <names> element (APA names legal cases by their
+    //    title through a macro);
+    //  - wording inside <names>, e.g. in a <substitute>, which is the name;
+    //  - wording that *replaces* the names, e.g. `<else><text
+    //    term="anonymous"/></else>` for authorless items, as eleven styles in
+    //    the CSL repository do. Removing it broke their narrative citations for
+    //    those items.
+    let removedWording = 0;
+    for (const text of tagged(clone, "text")) {
+      if (!text.hasAttribute("term") && !text.hasAttribute("value")) continue;
+      if (!accompaniesNames(text)) continue;
+      text.parentNode.removeChild(text);
+      removedWording++;
+    }
+
     // Constraints 1 and 2: push everything inheritable down onto the elements
     // that will actually be read. Never overwrite an attribute the macro sets
     // for itself -- the style's own choice is more specific than what it
@@ -405,7 +452,7 @@ export function synthesizeIntext(xml: string): SynthesisResult {
     return {
       xml: new XMLSerializer().serializeToString(doc),
       synthesized: true,
-      reason: `cloned macro "${found.name}"; pushed attributes onto ${nameEls.length} <name> element(s); flipped ${flipped} and="symbol"`,
+      reason: `cloned macro "${found.name}"; pushed attributes onto ${nameEls.length} <name> element(s); flipped ${flipped} and="symbol"; removed ${removedWording} piece(s) of wording beside the names`,
       macro: found.name,
       flipped,
     };

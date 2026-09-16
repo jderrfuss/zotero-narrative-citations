@@ -3,6 +3,11 @@
 Running record of what has been verified _in the plugin_, as opposed to in the
 spikes. Companion to `SPIKE-RESULTS.md`, same conventions.
 
+The milestone sections are kept as written at the time. Where the pre-release
+audit found that a result established less than it claimed, a note marked
+**Audit correction** says so in place. The audit itself is recorded in the last
+section.
+
 ---
 
 ## M2 — the join
@@ -37,6 +42,10 @@ pipeline and produce narrative text in a Word document that survives a refresh?
 | **B12** | text stable across refreshes                                  | **PASS** |
 | **B13** | no control field drifted                                      | **PASS** |
 
+> **Audit correction.** B2 and B3 check that the gate drops a transient value,
+> which is a silent loss of the flag by design (DECISIONS.md §1). They do not
+> show that a transient value cannot occur.
+
 **The rendering.**
 
 ```
@@ -69,11 +78,19 @@ parenthesis placement, year position — is already correct.
   `DECISIONS.md` §1, and it worked with no hook of its own. The storage decision
   is validated end to end, not just in theory.
 
+  > **Audit correction.** This overstates what B6–B13 show. Zotero discards
+  > what `rebuildProcessorState()` returns, and a Refresh then re-renders every
+  > citation through the `toJSON` path (path 2). So the rendered text came from
+  > path 2; the test shows path 4 ran without error, not that it rendered
+  > correctly.
+
 **Still not verified.**
 
 - Style switching, and what a flagged citation does under a numeric or note
   style.
-- Document close and reopen, and a Zotero restart.
+- Document close and reopen, and a Zotero restart. _(Observed during the audit:
+  the flag survived closing and reopening the document without saving, and
+  several Zotero restarts.)_
 - The citation dialog (`DECISIONS.md` §1 argues no patch is needed there; that
   is a source reading, still untested).
 - `properties.infix` (possessives), multi-item clusters, any style but APA,
@@ -107,6 +124,12 @@ object); the script prints them and re-reads the document.
 | **D4** | exactly one field flagged narrative in the document | **PASS** |
 | **D5** | still exactly one after a refresh                   | **PASS** |
 
+> **Audit note.** The `io.accept` wrapper also runs on Cancel, because
+> `CitationEditInterface.cancel()` empties the citation's items and then calls
+> `accept()`. So `acceptSeen` alone does not mean the dialog was accepted. D1
+> cannot false-pass this way: on Cancel the flag is cleared for having no
+> items.
+
 By hand, all yes: the checkbox appears under "Omit Author"; the live preview
 updates to `Houlgreave et al. (2025)` on ticking it; the document text matches
 after accept; and re-opening the citation shows the box still ticked.
@@ -125,6 +148,11 @@ after accept; and re-opening the citation shows the box still ticked.
   `properties` alone, so the cluster-level flag passes through. `properties.mode`
   was `"composite"` at `io.accept` with the box ticked. **The plugin ships one
   patch.**
+
+  > **Audit correction.** One patch _for persistence_. The plugin as a whole
+  > patches four Zotero internals and wraps two functions in the citation
+  > dialog.
+
 - **The document → dialog → document round trip works.** `modeOnOpen` was
   `"composite"` when re-opening an already-narrative citation, so the dialog
   reads the persisted flag, not just writes it.
@@ -249,6 +277,13 @@ teardown.
 | **S6**  | no errors in any dialog session                                | **PASS** |
 | **S7**  | no multi-item citation flagged narrative                       | **PASS** |
 
+> **Audit correction.** S2–S4 are read from diagnostic flags the plugin sets on
+> itself, not from the dialog or the document: S3's flag is set by the same
+> statement that clears the narrative flag, and S4's is set before the revert
+> runs. Each passes if it held in any of the last ten dialog sessions. S7 was
+> not an automated check; the script lists the fields and asks for inspection
+> by eye.
+
 ### Two bugs found by reading before testing
 
 **The live single-item guard never fired.** It asked
@@ -286,6 +321,12 @@ Every in-text author-date style synthesizes; every numeric and note style falls
 back. This is the first evidence that the transform is genuinely style-agnostic
 rather than APA-shaped — SPIKE-RESULTS listed that as unverified.
 
+> **Audit correction.** Synthesizing is not rendering correctly, and seven
+> styles is a small sample. The audit rendered 1,345 supported styles from the
+> CSL repository: most are fine, but some less common styles break for
+> authorless references or pick the wrong macro, and APA itself printed
+> "personal communication" twice. See the Audit section.
+
 ### THE DEFECT: MLA renders `[NO_PRINTED_FORM]`
 
 ```
@@ -320,6 +361,10 @@ runs _after_ `updateCitationObject(true)`, so it should have been 1. Diagnostic
 only — no behavioural impact observed — but not understood. Worth a cross-check
 field against `CitationDataManager.items.length` if it recurs.
 
+> **Audit: explained.** Almost certainly a cancelled dialog.
+> `CitationEditInterface.cancel()` sets `citationItems = []` and then calls
+> `accept()`, which is the wrapper. See the note under M4.
+
 ---
 
 ## M6 — style capability detection
@@ -331,8 +376,14 @@ field against `CitationDataManager.items.length` if it recurs.
 **Two halves, deliberately different behaviour.** The control is _disabled with
 an explanation_ when the active style cannot support narrative citations; an
 already-flagged citation _falls back silently_ to an ordinary parenthetical.
-The second matters because a flag outlives the style that made it — write in
-APA, switch to MLA for submission, and no dialog is involved.
+
+> **Audit correction.** The fallback had a defect none of these tests reached:
+> _editing_ a flagged citation under an unsupported style that sorts its
+> citations — all five bundled numeric styles — hung the dialog on Accept and
+> blocked Zotero's Word integration until restart. MLA does not sort, so the
+> MLA round trip below could not show it. Fixed in the audit (DECISIONS.md §4).
+> The second matters because a flag outlives the style that made it — write in
+> APA, switch to MLA for submission, and no dialog is involved.
 
 **Results.**
 
@@ -346,6 +397,12 @@ APA, switch to MLA for submission, and no dialog is involved.
 | **Q3** | switching back to APA restores the narrative form         | **PASS** |
 | **Q4** | control disabled under an unsupported style               | **PASS** |
 | **Q5** | tooltip gives the style-specific reason (MLA _and_ IEEE)  | **PASS** |
+
+> **Audit notes.** F1 uses the same kind of invariant as sweep L2 — narrative
+> output is `[NO_PRINTED_FORM]` or empty — with one item type (a two-author
+> article), on engines built directly rather than through the plugin. It cannot
+> see wrong or repeated names, or failures for other item types. The script also
+> computes F4–F7; their results were not recorded here.
 
 **Q3 is the one that validates the design.** The flag survived a round trip
 through an unsupported style. That is the payoff from stripping `mode` at the
@@ -379,6 +436,65 @@ for different reasons ("carries no year" vs "numbers its citations"), and both
 tooltips were correct -- so the text reflects the live assessment rather than a
 generic string, and `getLastCapability()` is not stale after a style switch.
 
+> **Audit correction.** Not stale with one document open. With two documents in
+> different styles, the style built last decided the checkbox in both. Fixed in
+> the audit: support is now recorded per engine (`getSessionCapability()`,
+> DECISIONS.md §4).
+
 This is the second time an invariant of mine has been too weak to catch broken
 output (the first being sweep L2, which MLA satisfied). Worth remembering: "the
 output is non-empty and differs from the parenthetical" is a very low bar.
+
+---
+
+## Audit — pre-release
+
+**Date:** 2026-09-16
+**Environment:** Zotero 10.0.2, Word 16 on macOS, Better BibTeX 9.0.64 also
+installed. Fixes on branch `audit-fixes`.
+
+**Method.** An adversarial review of the plugin against the shipped Zotero
+10.0.2 source (not these documents), with runtime evidence collected three ways:
+
+- a Run JavaScript script building engines through the plugin's patched path;
+- checks by hand in Word, on a copy of the test document;
+- Zotero's own citeproc run offline over the CSL styles repository (2,862
+  independent styles; 1,345 judged supported), rendering seven to ten item
+  types per style. An XML library stood in for the browser's parser. The
+  harness reproduced M5's outputs exactly.
+
+**Found and fixed, each verified in Word.**
+
+| Commit    | Problem                                                                                                                                                                            | Verified                                                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `3dc0487` | Editing a narrative citation under a sorting unsupported style (e.g. IEEE) threw in the dialog's sort and hung Word integration until restart. The flag also could not be removed. | Hang reproduced first (error at `citationDialog.js:2324`, command never finished); after the fix, Accept works and unticking removes the flag. |
+| `6722e71` | A Word command could run before the plugin's patches existed (a Refresh arrived about 4 s early, behind another plugin), leaving the document's engine unpatched until restart.    | The early arrival and stale engine observed; after the fix, a deliberately stale engine is rebuilt on plugin startup and renders "and" again.  |
+| `bba2edb` | One global style-support value: with two documents open, the style built last decided the checkbox in both.                                                                        | APA and IEEE documents open together, IEEE built last: checkbox enabled in APA, disabled with the numeric-style reason in IEEE.                |
+| `6edba12` | APA personal communications printed the phrase twice: `S. Lee, personal communication (personal communication, 2018)`.                                                             | Letter and Interview items render `S. Lee (personal communication, 2018)` form; an interview with a URL is unchanged. Offline: no regressions. |
+| `e3b9956` | Refresh merged a parenthetical citation typed directly before a narrative one into a saved narrative citation of two works.                                                        | Refresh now produces an ordinary two-item citation with no flag in the field code.                                                             |
+
+Also changed without a Word-level trigger to test against: the dialog's
+checkbox used to count citeproc's transient mode values as narrative, which the
+saved field does not. It now counts only the saved value (DECISIONS.md §1).
+
+**Observed, not changed.**
+
+- On Word for Mac, citations are merged on Refresh only when nothing at all is
+  between them; a space or a line break prevents it. A narrative citation typed
+  directly before another citation is still folded into it (README).
+- Word for Mac does not start Zotero itself; a Refresh with Zotero closed only
+  shows an error. The startup window applies when Zotero is starting.
+- Offline rendering, supported styles × seven item types: 276 renders showed
+  `[NO_PRINTED_FORM]` or an error, in 200 styles — mostly authorless references
+  in less common styles, plus a few styles that pick the wrong macro or have no
+  year. None are bundled styles. Rules to avoid synthesis for such styles were
+  measured and rejected (DECISIONS.md §6); the cases are documented in README.
+
+**Not verified.**
+
+- A real startup race after the startup fix, and the rebuild's wait for a
+  running Word command.
+- Windows, LibreOffice, Google Docs, and delayed citation updates.
+- One theoretical issue left open: the flag raised while building an engine is
+  a single boolean, so overlapping engine builds could clear it early (see the
+  comment in `styleEngine.ts`).

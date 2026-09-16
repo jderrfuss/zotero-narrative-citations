@@ -19,6 +19,7 @@ logs
 # Test artefacts: working copies of the test document, and Word lock files.
 # assets/test_document.docx is the pristine original and IS tracked.
 spikes/*_working_copy.docx
+assets/audit-copy.docx
 ~$*
 
 # Working notes kept alongside the project but not published.

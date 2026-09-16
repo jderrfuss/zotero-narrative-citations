@@ -24,14 +24,12 @@
  * in place ("author-only" -> "suppress-author" -> back to "composite"). A throw
  * mid-render could leave a live Citation carrying a transient value. The
  * toJSON patch therefore acts as a validating gate: only the literal string
- * "composite" is ever written back to the document.
+ * "composite" is ever written back to the document, and only for a citation
+ * with a single item.
  */
 
 /** The only value of `properties.mode` this plugin ever persists. */
 export const NARRATIVE_MODE = "composite";
-
-/** Values citeproc-js may leave behind transiently mid-render. */
-const TRANSIENT_MODES = ["author-only", "suppress-author"];
 
 export interface CitationProperties {
   mode?: string;
@@ -47,16 +45,22 @@ export interface CitationLike {
 /**
  * Is this citation flagged narrative?
  *
- * Deliberately tolerant of the transient values above, because a caller may
- * legitimately ask mid-render (e.g. the citation dialog repainting while a
- * preview is in flight).
+ * Exactly the value the toJSON gate saves (modeToPersist), so the dialog's
+ * checkbox can never show a citation as narrative that Accept then saves as an
+ * ordinary one.
+ *
+ * This used to also accept citeproc's transient "author-only" and
+ * "suppress-author", on the theory that the dialog might ask mid-render. It
+ * cannot: process_CitationCluster sets and restores them synchronously. They
+ * only survive when citeproc throws mid-render, and the gate drops them then --
+ * so accepting them made the checkbox show ticked for a flag that was about to
+ * be lost. Now such a citation shows unticked; ticking the box restores
+ * "composite".
  */
 export function isNarrative(
   citation: CitationLike | undefined | null,
 ): boolean {
-  const mode = citation?.properties?.mode;
-  if (!mode) return false;
-  return mode === NARRATIVE_MODE || TRANSIENT_MODES.includes(mode);
+  return citation?.properties?.mode === NARRATIVE_MODE;
 }
 
 /**

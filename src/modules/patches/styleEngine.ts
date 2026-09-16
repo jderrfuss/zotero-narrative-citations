@@ -40,8 +40,9 @@
  * duration of the original call. `getCiteProc` contains no `await`
  * (verified against 10.0.2), so the override is installed and removed within a
  * single synchronous turn and no other code can observe it. Nothing is left
- * behind on any prototype, so there is no dead-object hazard when the plugin
- * sandbox is torn down.
+ * behind on any prototype. (Zotero 10.0.2 does not destroy a plugin's sandbox
+ * when the plugin is disabled, so functions left behind would keep working;
+ * a later version might.)
  *
  * `_eventToEventTitle` still runs afterwards; it only rewrites elements
  * matching `[variable*="event"]`, so a synthesized <intext> passes through it
@@ -61,7 +62,17 @@
  * for. That is accepted deliberately: an <intext> block is inert unless a
  * cluster sets `properties.mode`, and SPIKE-RESULTS confirmed parenthetical
  * output is unchanged by its presence -- so the flag buys narrowness without
- * correctness depending on it.
+ * correctness depending on it. In practice the window is only open while
+ * styles are still loading; after that the await settles within the same turn.
+ *
+ * What that argument does not cover (neither has been observed):
+ *  - A caller asking for a cached engine inside the window (Quick Copy, the
+ *    item pane) would also get the fallback guard if its style is unsupported,
+ *    and keep it in Zotero's engine cache.
+ *  - The flag is a single boolean. Overlapping setData calls -- e.g. Zotero's
+ *    resetSessionStyles after a style update, during a Word command -- could
+ *    clear it while another call is still waiting, and that session would get
+ *    an engine with no <intext> and no fallback guard.
  *
  * Note too that the integration's `getCiteProc` call passes no `cache` option,
  * so `cacheKey` is null and the engine never enters
@@ -77,6 +88,7 @@ import {
   type SynthesisResult,
   type StyleCapability,
 } from "../intext";
+import { installFallbackGuard } from "../fallbackGuard";
 
 let setDataHelper: PatchHelper | undefined;
 let getCiteProcHelper: PatchHelper | undefined;
@@ -88,72 +100,77 @@ let buildingIntegrationEngine = false;
 let lastSynthesis: (SynthesisResult & { when: string }) | undefined;
 
 /**
- * Whether the style the integration session is currently using can support
- * narrative citations at all. Read by the citation dialog to decide whether to
- * enable the checkbox, and by the fallback guard below.
+ * Whether each integration engine's style can support narrative citations, as
+ * assessed when the engine was built -- the same value its fallback guard was
+ * installed with.
+ *
+ * Per engine, not one module-level value: every open document has its own
+ * session and engine, and any of them (or Zotero's resetSessionStyles after a
+ * style update) can build an engine at any time. A single "last" value made
+ * the checkbox in one document reflect whichever document's style was built
+ * most recently.
  */
-let lastCapability: StyleCapability | undefined;
+const capabilityByEngine = new WeakMap<object, StyleCapability>();
 
 export function getLastSynthesis() {
   return lastSynthesis;
 }
 
-export function getLastCapability() {
-  return lastCapability;
-}
-
 /**
- * Silent fallback for styles that cannot support narrative citations.
+ * Can the style of this integration session support narrative citations?
  *
- * A flagged citation outlives the style that supported it: write in APA with
- * narrative citations, switch to MLA for submission, and the flags are still in
- * the document with no dialog involved. Without this guard every one of them
- * would render `[NO_PRINTED_FORM]` (see intext.ts citationRendersADate).
- *
- * The flag is dropped at the *processor boundary*, not in the document, so
- * switching back to a supporting style restores the narrative form. That
- * distinction is why this cannot live in the `Citation.toJSON` patch: that one
- * method feeds both the processor and the field write-back, and cannot tell
- * them apart. An engine instance can -- and every render route
- * (`_updateCitations`, `restoreProcessorState`, and the dialog's live preview
- * via `previewCitationCluster`) funnels through this one method.
- *
- * Instance-level, so no prototype is touched and nothing survives teardown.
+ * Read by the citation dialog for the session whose command opened it. Returns
+ * what the session's engine was built with, so the checkbox and the fallback
+ * guard cannot disagree. For an engine built without these patches -- before
+ * plugin startup, or not yet reached by rebuildExistingIntegrationEngines --
+ * assesses the session's style directly instead.
  */
-function installFallbackGuard(engine: any, capability: StyleCapability): void {
-  if (!engine || capability.supported) return;
-  const stock = engine.processCitationCluster;
-  if (typeof stock !== "function") return;
+export function getSessionCapability(
+  session: any,
+): StyleCapability | undefined {
+  const engine = session?.style;
+  if (engine) {
+    const known = capabilityByEngine.get(engine);
+    if (known) return known;
+  }
 
-  engine.processCitationCluster = function (
-    this: any,
-    citation: any,
-    ...rest: unknown[]
-  ) {
-    if (citation?.properties?.mode) {
-      // Copy before stripping. restoreProcessorState() passes the *live*
-      // Zotero.Integration.Citation object (integration.js:2383), so mutating
-      // it here would delete the user's flag from the document itself.
-      // Untouched otherwise, so unflagged citations keep object identity.
-      citation = {
-        ...citation,
-        properties: { ...citation.properties },
+  const styleID = session?.data?.style?.styleID;
+  if (!styleID) return undefined;
+  try {
+    const style = (Zotero as any).Styles.get(styleID);
+    if (!style) {
+      return {
+        supported: false,
+        code: "error",
+        reason: `style ${styleID} is not installed`,
       };
-      delete citation.properties.mode;
-      delete citation.properties.infix;
     }
-    return stock.call(this, citation, ...rest);
-  };
+    return assessStyle(style.getXML());
+  } catch (e) {
+    return {
+      supported: false,
+      code: "error",
+      reason: `could not read style: ${(e as Error).message}`,
+    };
+  }
 }
 
 /**
  * Run `fn` with the style instance's `getXML` temporarily returning XML that
  * carries a synthesized <intext>. Installed and removed within one synchronous
  * turn, so nothing else can observe it and nothing is left on any prototype.
+ *
+ * Also returns the capability assessed from that XML, or undefined if `fn`
+ * never read it (e.g. a cached engine was returned).
  */
-function withSynthesizedXML<T>(Style: any, style: any, fn: () => T): T {
+function withSynthesizedXML<T>(
+  Style: any,
+  style: any,
+  fn: () => T,
+): { value: T; capability: StyleCapability | undefined } {
   const hadOwn = Object.prototype.hasOwnProperty.call(style, "getXML");
   const previous = style.getXML;
+  let capability: StyleCapability | undefined;
 
   style.getXML = function (this: any, ...xmlArgs: unknown[]) {
     const xml = (hadOwn ? previous : Style.prototype.getXML).apply(
@@ -163,14 +180,14 @@ function withSynthesizedXML<T>(Style: any, style: any, fn: () => T): T {
     // Never throws; on failure it returns its input unchanged, so a style we
     // cannot handle falls back to the no-<intext> rendering rather than
     // breaking citations.
-    lastCapability = assessStyle(xml);
+    capability = assessStyle(xml);
     const result = synthesizeIntext(xml);
     lastSynthesis = { ...result, when: new Date().toISOString() };
     return result.xml;
   };
 
   try {
-    return fn();
+    return { value: fn(), capability };
   } finally {
     if (hadOwn) {
       style.getXML = previous;
@@ -244,29 +261,77 @@ export function installStyleEnginePatches(): void {
           // author-date style that composite mode handles at 9/10
           // (SPIKE-RESULTS §4.8). Assess it anyway so the guard and the
           // dialog agree.
+          let legacyCapability: StyleCapability;
           try {
-            lastCapability = assessStyle(this.getXML());
+            legacyCapability = assessStyle(this.getXML());
           } catch (e) {
-            lastCapability = {
+            legacyCapability = {
               supported: false,
+              code: "error",
               reason: `could not read style: ${(e as Error).message}`,
             };
           }
           const legacyEngine = original.apply(this, args);
-          installFallbackGuard(legacyEngine, lastCapability);
+          installFallbackGuard(legacyEngine, legacyCapability);
+          if (legacyEngine)
+            capabilityByEngine.set(legacyEngine, legacyCapability);
           return legacyEngine;
         }
 
-        const engine = withSynthesizedXML(Style, this, () =>
-          original.apply(this, args),
+        const { value: engine, capability } = withSynthesizedXML(
+          Style,
+          this,
+          () => original.apply(this, args),
         );
-        installFallbackGuard(
-          engine,
-          lastCapability ?? { supported: true, reason: "not assessed" },
-        );
+        // Not assessed means getXML was never read, so nothing was synthesized
+        // either: leave the engine unguarded and unrecorded, and let
+        // getSessionCapability assess the style if the dialog asks.
+        if (engine && capability) {
+          installFallbackGuard(engine, capability);
+          capabilityByEngine.set(engine, capability);
+        }
         return engine;
       },
   });
+}
+
+/**
+ * Rebuild the engines of integration sessions that already exist, so they go
+ * through the patched path.
+ *
+ * A session keeps its engine until its style changes, a style is installed or
+ * updated, or Zotero restarts -- a Refresh does not rebuild it. So an engine
+ * built before the patches were installed stays unpatched: no <intext> (APA
+ * narrative citations render "&" instead of "and") and no fallback guard
+ * (unsupported styles render [NO_PRINTED_FORM]). That happens when a Word
+ * command arrives during Zotero startup before this plugin has started, and
+ * when the plugin is installed, enabled or upgraded while a document is open.
+ * It also replaces engines carrying a previous plugin version's guard.
+ *
+ * Same call Zotero makes itself after a style update
+ * (Zotero.Integration.resetSessionStyles, integration.js:225). Never swaps an
+ * engine under a running command: waits for it to finish first, and re-checks
+ * before each session in case another has started.
+ */
+export async function rebuildExistingIntegrationEngines(): Promise<void> {
+  const Integration = (Zotero as any)?.Integration;
+  if (!Integration?.sessions) return;
+
+  for (const session of Object.values(Integration.sessions) as any[]) {
+    while (Integration.currentDoc) {
+      await Integration.currentCommandPromise;
+    }
+    // Uninstalled while waiting: a rebuild now would produce a stock engine.
+    if (!setDataHelper) return;
+    if (!session?.data?.style?.styleID) continue;
+    try {
+      await session.setData(session.data, true);
+    } catch (e) {
+      // setData logs and throws for a style that is no longer installed; the
+      // session keeps its old engine, as it would in Zotero's own reset.
+      Zotero.logError(e as Error);
+    }
+  }
 }
 
 export function uninstallStyleEnginePatches(): void {
@@ -275,5 +340,4 @@ export function uninstallStyleEnginePatches(): void {
   getCiteProcHelper?.unpatch();
   getCiteProcHelper = undefined;
   buildingIntegrationEngine = false;
-  lastCapability = undefined;
 }

@@ -43,7 +43,7 @@ import {
   setNarrative,
   NARRATIVE_MODE,
 } from "./narrative";
-import { getLastCapability } from "./patches/styleEngine";
+import { getSessionCapability } from "./patches/styleEngine";
 import type { UnsupportedReason } from "./intext";
 import { getString } from "../utils/locale";
 import type { FluentMessageId } from "../../typings/i10n";
@@ -78,6 +78,13 @@ const TOOLTIP_MULTI = () =>
     "narrative-citation-unavailable-multi",
     "Narrative citations are only available for a single reference. " +
       "Remove the others, or cite them separately.",
+  );
+
+const TOOLTIP_FLAGGED = () =>
+  text(
+    "narrative-citation-unavailable-flagged",
+    "This citation is marked as narrative, but appears as an ordinary " +
+      "citation in this style. Untick to remove the narrative setting.",
   );
 
 /** One tooltip per reason the active style cannot support narrative mode. */
@@ -219,6 +226,13 @@ function onDialogLoad(win: any): void {
   probe.modeOnOpen = io.citation.properties?.mode;
   probe.newCitation = (io.citation.citationItems?.length ?? 0) === 0;
 
+  // The document this dialog belongs to. Session.cite() opens the dialog from
+  // inside an integration command, which has already set currentSession
+  // (integration.js:282), and a new command cannot replace it until this one
+  // finishes. Captured now rather than read later for that reason; its style
+  // is looked up afresh on each popup, since the engine can be rebuilt meanwhile.
+  const session = (Zotero as any).Integration?.currentSession;
+
   // Notes and annotations dialogs have no citation items to make narrative.
   if (io.isCitingNotes || io.isAddingAnnotations) {
     recordProbe(probe);
@@ -310,7 +324,7 @@ function onDialogLoad(win: any): void {
     // Two independent reasons the control can be unavailable. The style is
     // checked first because it is the more fundamental of the two: no amount of
     // removing items makes MLA able to render "Smyth and Blitshteyn (2025)".
-    const capability = getLastCapability();
+    const capability = getSessionCapability(session);
     const styleOK = capability ? capability.supported : true;
     probe.styleSupported = styleOK;
     probe.styleReason = capability?.reason;
@@ -319,14 +333,23 @@ function onDialogLoad(win: any): void {
     probe.itemCountAtPopup = count;
     const countOK = count === 1;
 
-    const allowed = styleOK && countOK;
+    // A flag carried over from a style that supported it must stay removable.
+    // The fallback guard renders it as an ordinary citation, so leaving it is
+    // harmless -- but a disabled, unticked control would hide that the flag is
+    // there and give the user no way to clear it under this style.
+    const flaggedUnderUnsupportedStyle =
+      !styleOK && countOK && isNarrative(io.citation);
+
+    const allowed = (styleOK && countOK) || flaggedUnderUnsupportedStyle;
     checkbox.disabled = !allowed;
     checkbox.checked = allowed && isNarrative(io.citation);
 
     // Disabled with an explanation rather than hidden: a control that vanishes
     // leaves the user wondering where it went, and the multi-item case already
     // sets this precedent.
-    if (!styleOK) {
+    if (flaggedUnderUnsupportedStyle) {
+      row.title = `${tooltipForCode(capability?.code)}\n${TOOLTIP_FLAGGED()}`;
+    } else if (!styleOK) {
       row.title = tooltipForCode(capability?.code);
     } else if (!countOK) {
       row.title = TOOLTIP_MULTI();

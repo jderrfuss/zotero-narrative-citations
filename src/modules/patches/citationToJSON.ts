@@ -33,7 +33,7 @@
 
 import { PatchHelper } from "zotero-plugin-toolkit";
 import { config } from "../../../package.json";
-import { modeToPersist } from "../narrative";
+import { canBeNarrative, modeToPersist } from "../narrative";
 
 let helper: PatchHelper | undefined;
 
@@ -66,7 +66,19 @@ export function installCitationToJSONPatch(): void {
           // back to "composite"); a throw mid-render could leave a live
           // Citation carrying a transient value. Only the literal narrative
           // mode is ever written back to the document.
-          const mode = modeToPersist(this.properties);
+          //
+          // And only for a single reference (DECISIONS.md §2). The citation
+          // dialog enforces that, but Refresh can create a multi-item cluster
+          // without it: adjacent fields are merged, keeping the last field's
+          // properties (integration.js:1216, mergeCitation), so a parenthetical
+          // followed directly by a narrative citation became one narrative
+          // cluster of two works -- "Eriksen and Hoffman (1973; Houlgreave et
+          // al., 2025)" -- and was saved that way. This method also feeds the
+          // processor in _updateCitations, so the same check renders it as an
+          // ordinary citation.
+          const mode = canBeNarrative(this)
+            ? modeToPersist(this.properties)
+            : undefined;
           if (mode) {
             json.properties = json.properties || {};
             json.properties.mode = mode;
