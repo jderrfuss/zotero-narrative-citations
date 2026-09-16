@@ -1,0 +1,16 @@
+.vscode
+build
+scaffold
+logs
+node_modules
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Run-in-Zotero scripts: top-level return/await, not valid standalone modules
+spikes/
+scripts/
+
+# Reference documents — not ours to reformat
+SPIKE-RESULTS.md
+assets/
