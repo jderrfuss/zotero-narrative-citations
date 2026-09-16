@@ -1,8 +1,8 @@
 {
   "name": "zotero-narrative-citations",
   "type": "module",
-  "version": "0.0.1",
-  "description": "Narrative (author-year) citations for Zotero: Smith and Jones (2024) instead of (Smith & Jones, 2024).",
+  "version": "0.1.0",
+  "description": "Cite as Smith and Jones (2024) instead of (Smith & Jones, 2024).",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jderrfuss/zotero-narrative-citations.git"

@@ -45,8 +45,12 @@ ill-defined, so the checkbox is disabled when a citation has more than one item.
 **Possessives are manual.** Type the `'s` in `Smith's (2020) study` outside the
 citation field.
 
-**macOS and Word only, so far.** Windows, LibreOffice and Google Docs are
-untested. So is the note editor.
+**Only tested on macOS with Word.** Nothing in the plugin is
+platform-specific — it patches Zotero's integration layer, which sits above the
+word-processor shims, so Windows, LibreOffice and Google Docs should work. But
+"should" is not "does", and nobody has tried. Reports welcome. The note editor
+is a genuinely separate problem: composite mode is not supported by
+`makeCitationCluster()`, which is what the note editor uses.
 
 ## Supported styles
 
@@ -65,6 +69,20 @@ parenthetical. The flag stays in the document, so switching back restores it.
 
 Download the `.xpi` from Releases, then in Zotero:
 **Tools → Add-ons → gear icon → Install Add-on From File…**
+
+### Or build it yourself
+
+No release yet, or you'd rather build from source? Needs Node 18+:
+
+```bash
+git clone https://github.com/jderrfuss/zotero-narrative-citations.git
+cd zotero-narrative-citations
+npm install
+npm run build
+```
+
+That produces `scaffold/build/narrative-citations.xpi`, which you install the
+same way.
 
 Requires **Zotero 10.x**. The version pin is deliberately narrow — a Zotero
 update should disable this plugin rather than run unverified patches against
