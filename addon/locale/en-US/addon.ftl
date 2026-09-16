@@ -8,3 +8,6 @@ narrative-citation-unavailable-note = This style puts citations in footnotes, wh
 narrative-citation-unavailable-numeric = This style numbers its citations rather than naming authors, so there is no author to put in the sentence.
 narrative-citation-unavailable-nodate = This style's citations carry no year, so a narrative citation would have nothing to put in the parentheses.
 narrative-citation-unavailable-generic = Narrative citations are not available for this citation style.
+
+# Added to the reason above when the citation is already marked narrative, e.g. from a previous style.
+narrative-citation-unavailable-flagged = This citation is marked as narrative, but appears as an ordinary citation in this style. Untick to remove the narrative setting.

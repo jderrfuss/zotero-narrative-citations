@@ -80,6 +80,13 @@ const TOOLTIP_MULTI = () =>
       "Remove the others, or cite them separately.",
   );
 
+const TOOLTIP_FLAGGED = () =>
+  text(
+    "narrative-citation-unavailable-flagged",
+    "This citation is marked as narrative, but appears as an ordinary " +
+      "citation in this style. Untick to remove the narrative setting.",
+  );
+
 /** One tooltip per reason the active style cannot support narrative mode. */
 function tooltipForCode(code: UnsupportedReason | undefined): string {
   switch (code) {
@@ -319,14 +326,23 @@ function onDialogLoad(win: any): void {
     probe.itemCountAtPopup = count;
     const countOK = count === 1;
 
-    const allowed = styleOK && countOK;
+    // A flag carried over from a style that supported it must stay removable.
+    // The fallback guard renders it as an ordinary citation, so leaving it is
+    // harmless -- but a disabled, unticked control would hide that the flag is
+    // there and give the user no way to clear it under this style.
+    const flaggedUnderUnsupportedStyle =
+      !styleOK && countOK && isNarrative(io.citation);
+
+    const allowed = (styleOK && countOK) || flaggedUnderUnsupportedStyle;
     checkbox.disabled = !allowed;
     checkbox.checked = allowed && isNarrative(io.citation);
 
     // Disabled with an explanation rather than hidden: a control that vanishes
     // leaves the user wondering where it went, and the multi-item case already
     // sets this precedent.
-    if (!styleOK) {
+    if (flaggedUnderUnsupportedStyle) {
+      row.title = `${tooltipForCode(capability?.code)}\n${TOOLTIP_FLAGGED()}`;
+    } else if (!styleOK) {
       row.title = tooltipForCode(capability?.code);
     } else if (!countOK) {
       row.title = TOOLTIP_MULTI();

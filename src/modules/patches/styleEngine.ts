@@ -130,19 +130,41 @@ function installFallbackGuard(engine: any, capability: StyleCapability): void {
     citation: any,
     ...rest: unknown[]
   ) {
-    if (citation?.properties?.mode) {
-      // Copy before stripping. restoreProcessorState() passes the *live*
-      // Zotero.Integration.Citation object (integration.js:2383), so mutating
-      // it here would delete the user's flag from the document itself.
-      // Untouched otherwise, so unflagged citations keep object identity.
-      citation = {
-        ...citation,
-        properties: { ...citation.properties },
-      };
-      delete citation.properties.mode;
-      delete citation.properties.infix;
+    if (!citation?.properties?.mode) {
+      return stock.call(this, citation, ...rest);
     }
-    return stock.call(this, citation, ...rest);
+
+    // Copy before stripping. restoreProcessorState() passes the *live*
+    // Zotero.Integration.Citation object (integration.js:2383), so mutating
+    // it here would delete the user's flag from the document itself.
+    //
+    // Not mutate-and-restore instead: citeproc keeps the object it is given in
+    // its registry and later re-renders tainted citations from there directly
+    // via process_CitationCluster, bypassing this guard, so a restored flag
+    // would render [NO_PRINTED_FORM].
+    const live = citation;
+    const copy = {
+      ...live,
+      properties: { ...live.properties },
+    };
+    delete copy.properties.mode;
+    delete copy.properties.infix;
+
+    try {
+      return stock.call(this, copy, ...rest);
+    } finally {
+      // citeproc also *returns* data by writing onto the citation object, and
+      // callers read it back from the object they passed. Without this the
+      // citation dialog's sort (citationDialog.js:2324) reads
+      // io.citation.sortedItems, finds it undefined, and throws inside
+      // accept() -- leaving the dialog and Zotero's Word integration hung
+      // until restart. These are the only two fields citeproc writes onto the
+      // citation in processCitationCluster and setCitationId (10.0.2).
+      if ("sortedItems" in copy) live.sortedItems = copy.sortedItems;
+      if (!live.citationID && copy.citationID) {
+        live.citationID = copy.citationID;
+      }
+    }
   };
 }
 

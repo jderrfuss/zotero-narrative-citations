@@ -4,6 +4,7 @@
 // @ts-nocheck
 export type FluentMessageId =
   | 'narrative-citation-label'
+  | 'narrative-citation-unavailable-flagged'
   | 'narrative-citation-unavailable-generic'
   | 'narrative-citation-unavailable-multi'
   | 'narrative-citation-unavailable-nodate'
