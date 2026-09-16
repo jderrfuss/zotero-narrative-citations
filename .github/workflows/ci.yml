@@ -34,11 +34,7 @@ jobs:
           name: build-result
           path: scaffold/build
 
-  test:
-    runs-on: ubuntu-latest
-    needs:
-      - build
-    steps:
-      - name: Setup JS
-        uses: zotero-plugin-dev/workflows/setup-js@main
-      - run: npm run test
+# No test job yet. `zotero-plugin test` drives a real Zotero instance, and this
+# project's verification is a set of scripts under scripts/ run by hand against
+# Word (see MILESTONE-RESULTS.md). Add a job here once there is a headless
+# suite for it to run.
