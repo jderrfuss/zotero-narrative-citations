@@ -20,3 +20,6 @@ logs
 # assets/test_document.docx is the pristine original and IS tracked.
 spikes/*_working_copy.docx
 ~$*
+
+# Working notes kept alongside the project but not published.
+private/

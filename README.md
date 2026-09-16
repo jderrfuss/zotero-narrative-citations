@@ -143,13 +143,11 @@ Anything needing Zotero's runtime is a script in `scripts/`, pasted into
 
 ## Documents
 
-|                                                                                          |                                                                                      |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [MILESTONE-RESULTS.md](MILESTONE-RESULTS.md)                                             | What has been verified in the plugin, milestone by milestone, including what hasn't. |
-| [DECISIONS.md](DECISIONS.md)                                                             | Storage slot, multi-item policy, version pinning.                                    |
-| [SPIKE-RESULTS.md](SPIKE-RESULTS.md)                                                     | What was verified before building, and what the original brief got wrong.            |
-| [FORUM-POST-DRAFT.md](FORUM-POST-DRAFT.md)                                               | A question to the Zotero developers about field format.                              |
-| [assets/zotero-narrative-citations-brief.md](assets/zotero-narrative-citations-brief.md) | The original brief. Superseded by SPIKE-RESULTS where they disagree.                 |
+|                                              |                                                                                      |
+| -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [MILESTONE-RESULTS.md](MILESTONE-RESULTS.md) | What has been verified in the plugin, milestone by milestone, including what hasn't. |
+| [DECISIONS.md](DECISIONS.md)                 | Storage slot, multi-item policy, version pinning.                                    |
+| [SPIKE-RESULTS.md](SPIKE-RESULTS.md)         | What was verified before building, and what the original brief got wrong.            |
 
 ## Licence
 
