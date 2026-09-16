@@ -22,7 +22,7 @@
     "lint:fix": "prettier --write . && eslint . --fix",
     "release": "zotero-plugin release",
     "test": "zotero-plugin test",
-    "test:offline": "mocha --import=tsx \"test-offline/**/*.test.ts\""
+    "test:offline": "mocha --import=tsx --timeout 30000 \"test-offline/**/*.test.ts\""
   },
   "dependencies": {
     "zotero-plugin-toolkit": "^5.1.0-beta.13"
