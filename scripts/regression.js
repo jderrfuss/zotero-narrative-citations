@@ -277,13 +277,21 @@ try {
 		const capability = addon.api.getSessionCapability(s);
 		const guarded = Object.prototype.hasOwnProperty.call(s.style, 'processCitationCluster');
 		const intext = !!(s.style.intext && s.style.intext.tokens.length);
-		log(`  session ${i}: ${styleID} supported=${capability && capability.supported} guard=${guarded} intext=${intext}`);
+		const cited = Object.keys(s.citationsByIndex || {}).length;
+		const registered = Object.keys((s.style.registry && s.style.registry.citationreg.citationById) || {}).length;
+		log(`  session ${i}: ${styleID} supported=${capability && capability.supported} guard=${guarded} intext=${intext} citations=${cited} registered=${registered}`);
 		if (capability && capability.supported) {
 			check('D-session' + i, 'supported style: engine has <intext> and no guard', intext && !guarded,
-				intext ? '' : 'No <intext>: engine built before the plugin started? Refresh should rebuild it.');
+				intext ? '' : 'No <intext>: engine built before the plugin started, and not rebuilt when it did. A Refresh does not rebuild engines; restart Zotero.');
 		} else {
 			check('D-session' + i, 'unsupported style: engine has the guard', guarded);
 		}
+		// A rebuilt engine starts empty. If it is not filled, the next Add/Edit
+		// Citation fails until a Refresh (audit 2). Counts can differ slightly
+		// with delayed citation updates, but an empty engine for a document with
+		// citations is always wrong.
+		check('D-registry' + i, 'engine holds this document\'s citations', cited === 0 || registered > 0,
+			`citations=${cited} registered=${registered}`);
 	});
 
 	if (!Zotero.isMac) {
@@ -344,7 +352,11 @@ log(`
      after it, with no space, a narrative citation. Refresh. They merge into
      one ordinary citation of two works (phase 4: items=2 mode=(none)).
   J  Tools → Plugins: disable and re-enable Narrative Citations without
-     touching Word in between. Refresh. Citation 1 still reads "and", not "&".
+     touching Word in between. Re-run this script: phase 4 passes D-registry
+     (any Word command refills the engine, so check before one). Then, WITHOUT
+     refreshing first (a Refresh hides this failure): edit citation 3. The
+     preview shows the citation, and Accept closes with no "error updating your
+     document". Finally Refresh: citation 1 still reads "and", not "&".
   K  Optional, needs a Letter item with no archive, URL or publisher: cite it
      as narrative. It reads "X. Surname (personal communication, YEAR)".
 `);
