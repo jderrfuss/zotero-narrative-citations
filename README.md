@@ -159,7 +159,8 @@ npm start              # hot-reload dev server (needs .env, see .env.example)
 `npm run test:offline` runs the tests in `test-offline/` against citeproc-js
 1.4.61, the version inside Zotero 10.0.2, with the styles bundled with Zotero as
 fixtures. They cover `<intext>` synthesis, style detection, exact narrative
-output for every supported bundled style, and the fallback guard. They do not
+output for every supported bundled style, the fallback guard, and shutdown's
+wait for a running Word command (against a stand-in for Zotero). They do not
 cover Word, the citation dialog or Zotero's internals; those are still checked
 by hand.
 

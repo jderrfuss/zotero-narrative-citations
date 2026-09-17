@@ -258,6 +258,26 @@ The window cannot be closed from a plugin: whatever loads before it, and
 Zotero's own startup, still come first. README tells users to let Zotero finish
 starting.
 
+### Shutdown: wait for a running Word command
+
+The same gap exists at the other end. When the plugin is updated, disabled or
+removed, its patches come off at once, and nothing in Zotero ties that to a Word
+command already in progress. A Refresh yields between citations, so one that
+spans the moment an update installs writes every citation after that point
+without its narrative flag. Updates install in the background, at any time.
+(Found in the second audit.)
+
+Zotero awaits a plugin's shutdown before replacing its files, so **shutdown
+first waits for a running command to finish**, up to two minutes. It does not
+wait while a dialog is open, because that command is waiting for the user, and
+holding an update or the Plugins pane for as long as a dialog stays open is
+worse. During an update the new version is patched again long before anyone can
+press Accept.
+
+This has to be in the version being replaced: an update runs the _old_
+version's shutdown. So it protects updates away from the first version that has
+it, not updates to it.
+
 ---
 
 ## 6. `<intext>` synthesis: what is copied, and what is not handled
