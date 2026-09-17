@@ -1,7 +1,7 @@
 {
   "name": "zotero-narrative-citations",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Cite as Smith and Jones (2024) instead of (Smith & Jones, 2024).",
   "repository": {
     "type": "git",
