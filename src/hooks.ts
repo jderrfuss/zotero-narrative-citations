@@ -5,6 +5,7 @@ import {
   uninstallCitationToJSONPatch,
 } from "./modules/patches/citationToJSON";
 import * as narrative from "./modules/narrative";
+import { waitForIntegrationCommand } from "./modules/commandWait";
 import {
   registerCitationDialogHook,
   unregisterCitationDialogHook,
@@ -77,7 +78,34 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
   ztoolkit.unregisterAll();
 }
 
-function onShutdown(): void {
+/** How long shutdown holds the patches for a running Word command. */
+const SHUTDOWN_COMMAND_WAIT_MS = 120_000;
+
+async function onShutdown(): Promise<void> {
+  // Keep the patches until a running Word command finishes, or a Refresh in
+  // progress during an update writes its remaining citations without the
+  // narrative flag. See modules/commandWait.ts for why and when not.
+  try {
+    const result = await waitForIntegrationCommand(
+      (Zotero as any).Integration,
+      {
+        timeoutMs: SHUTDOWN_COMMAND_WAIT_MS,
+        delay: (ms) => Zotero.Promise.delay(ms),
+      },
+    );
+    if (result === "timeout") {
+      Zotero.logError(
+        new Error(
+          "Narrative Citations: shutting down while a word-processor " +
+            "command is still running; citations it writes from now on " +
+            "lose their narrative flag",
+        ),
+      );
+    }
+  } catch (e) {
+    Zotero.logError(e as Error);
+  }
+
   try {
     unregisterCitationDialogHook();
   } catch (e) {
@@ -93,7 +121,14 @@ function onShutdown(): void {
   } catch (e) {
     Zotero.logError(e as Error);
   }
-  ztoolkit.unregisterAll();
+  try {
+    ztoolkit.unregisterAll();
+  } catch (e) {
+    Zotero.logError(e as Error);
+  }
+  // Must always run. index.ts only creates the plugin instance if none exists,
+  // so an instance left behind here would make the next version -- after an
+  // update, the new code -- start this version's hooks instead of its own.
   addon.data.alive = false;
   // @ts-expect-error - Plugin instance is not typed
   delete Zotero[addon.data.config.addonInstance];
