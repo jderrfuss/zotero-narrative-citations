@@ -59,9 +59,11 @@ citation field.
 **References without an author may not work as narrative citations.** In some
 less common styles, a narrative citation of a reference with no author (a web
 page with no byline, say, or a book with only editors) shows
-`[NO_PRINTED_FORM]` or repeats the year. The styles bundled with Zotero are not
-affected. Add the author to the reference in Zotero, or use an ordinary
-citation.
+`[NO_PRINTED_FORM]` or repeats the year. The styles bundled with Zotero don't do
+that, but when a title stands in for the author they drop its formatting in
+narrative form: APA and Harvard (Cite Them Right) lose the italics, and Chicago
+(author-date) and Elsevier (Harvard) lose the quotation marks. Add the author to
+the reference in Zotero, or use an ordinary citation.
 
 **A few less common styles are wrongly offered.** Styles whose in-text
 citations show no year cannot have narrative citations, and the checkbox is
@@ -157,12 +159,15 @@ npm start              # hot-reload dev server (needs .env, see .env.example)
 ```
 
 `npm run test:offline` runs the tests in `test-offline/` against citeproc-js
-1.4.61, the version inside Zotero 10.0.2, with the styles bundled with Zotero as
-fixtures. They cover `<intext>` synthesis, style detection, exact narrative
-output for every supported bundled style, the fallback guard, and shutdown's
-wait for a running Word command (against a stand-in for Zotero). They do not
-cover Word, the citation dialog or Zotero's internals; those are still checked
-by hand.
+1.4.61 from npm, with the styles bundled with Zotero as fixtures. That is the
+version inside Zotero 10.0.2, but not quite the same code: Zotero's copy has
+changes of its own, mostly in how it recovers from errors. In the renders
+compared during the first audit, the two gave identical output. The tests cover
+`<intext>` synthesis, style detection, exact narrative output for every
+supported bundled style, the fallback guard, and shutdown's wait for a running
+Word command (against a stand-in for Zotero). Output is checked as plain text;
+the formatted RTF that Word receives is not. They do not cover Word, the
+citation dialog or Zotero's internals; those are still checked by hand.
 
 `npm run build` also runs `tools/check-manifest.mjs`, which asserts the manifest
 rules Zotero enforces — it reports every manifest defect as the same unhelpful
@@ -186,6 +191,7 @@ there are records of individual milestones.
 | 5   | `<intext>` synthesis (the APA ampersand)            | done   |
 | 6   | Style capability detection, silent fallback         | done   |
 | 7   | Pre-release audit and fixes                         | done   |
+| 8   | Second audit and fixes                              | done   |
 
 What each step's checks did and did not establish is in
 [MILESTONE-RESULTS.md](MILESTONE-RESULTS.md), including where they were weaker
@@ -193,11 +199,11 @@ than their pass counts suggest.
 
 ## Documents
 
-|                                              |                                                                                      |
-| -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [MILESTONE-RESULTS.md](MILESTONE-RESULTS.md) | What has been verified in the plugin, milestone by milestone, including what hasn't. |
-| [DECISIONS.md](DECISIONS.md)                 | Storage slot, multi-item policy, version pinning, rendering fallback, startup.       |
-| [SPIKE-RESULTS.md](SPIKE-RESULTS.md)         | What was verified before building, and what the original brief got wrong.            |
+|                                              |                                                                                          |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [MILESTONE-RESULTS.md](MILESTONE-RESULTS.md) | What has been verified in the plugin, milestone by milestone, including what hasn't.     |
+| [DECISIONS.md](DECISIONS.md)                 | Storage slot, multi-item policy, version pinning, rendering fallback, startup, shutdown. |
+| [SPIKE-RESULTS.md](SPIKE-RESULTS.md)         | What was verified before building, and what the original brief got wrong.                |
 
 ## Licence
 

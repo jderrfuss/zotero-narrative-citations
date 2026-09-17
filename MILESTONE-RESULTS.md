@@ -3,10 +3,10 @@
 Running record of what has been verified _in the plugin_, as opposed to in the
 spikes. Companion to `SPIKE-RESULTS.md`, same conventions.
 
-The milestone sections are kept as written at the time. Where the pre-release
-audit found that a result established less than it claimed, a note marked
-**Audit correction** says so in place. The audit itself is recorded in the last
-section.
+The milestone sections are kept as written at the time. Where an audit found
+that a result established less than it claimed, a note marked **Audit
+correction** (or **Second audit correction**) says so in place. The two audits
+are recorded in the last two sections.
 
 ---
 
@@ -473,6 +473,11 @@ installed. Fixes on branch `audit-fixes`.
 | `6edba12` | APA personal communications printed the phrase twice: `S. Lee, personal communication (personal communication, 2018)`.                                                             | Letter and Interview items render `S. Lee (personal communication, 2018)` form; an interview with a URL is unchanged. Offline: no regressions. |
 | `e3b9956` | Refresh merged a parenthetical citation typed directly before a narrative one into a saved narrative citation of two works.                                                        | Refresh now produces an ordinary two-item citation with no flag in the field code.                                                             |
 
+> **Second audit correction.** The `6722e71` check refreshed the document after
+> the rebuild, and a Refresh always refills the processor, so it could not show
+> the rebuilt engine was usable. It was not: the next Add/Edit Citation failed
+> until the user refreshed. Fixed in the second audit (PR #9).
+
 Also changed without a Word-level trigger to test against: the dialog's
 checkbox used to count citeproc's transient mode values as narrative, which the
 saved field does not. It now counts only the saved value (DECISIONS.md §1).
@@ -498,3 +503,78 @@ saved field does not. It now counts only the saved value (DECISIONS.md §1).
 - One theoretical issue left open: the flag raised while building an engine is
   a single boolean, so overlapping engine builds could clear it early (see the
   comment in `styleEngine.ts`).
+
+---
+
+## Audit 2 — the fixes, updates and untested paths
+
+**Date:** 2026-09-17
+**Environment:** Zotero 10.0.2, Word 16 on macOS, Better BibTeX 9.0.64 also
+installed. Fixes in PRs #9 and #10.
+
+**Method.** A second adversarial review, aimed at the first audit's fixes (which
+were written and checked by the same session that found the problems), the
+update from one version to the next, and paths the first audit did not
+exercise. Evidence came from:
+
+- the shipped Zotero 10.0.2 source, including the add-on installer in the
+  toolkit's `omni.ja`;
+- a Run JavaScript script, and checks by hand in Word on copies of the test
+  document;
+- citeproc-js 1.4.61 from npm, run offline over the CSL styles repository
+  (1,345 supported styles) and over extra item types, output formats and
+  locales.
+
+**Found and fixed, each verified in Word.**
+
+| PR  | Problem                                                                                                                                                                                                                                                                                                                                | Verified                                                                                                                                                                                                                                          |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #9  | The engine rebuild at plugin start (`6722e71`) left each open document's engine empty. The next Add/Edit Citation showed no preview and failed with "Zotero experienced an error updating your document" until the user clicked Refresh. Nothing was written to the document. It would have happened after every update of the plugin. | Reproduced: 5 citations in the engine before the rebuild, 0 after, then the error in Word. After the fix, a new build installed over the old one with the document open: the engine held all 5, and editing a citation without refreshing worked. |
+| #10 | When the plugin was updated, disabled or removed during a Word command, the command carried on without the patches and wrote its remaining citations without the narrative flag.                                                                                                                                                       | Turning the plugin off the moment a Refresh started: 1 narrative citation before, 0 after without the fix; 1 and 1 with it. With a citation dialog open, turning the plugin off still completed at once.                                          |
+
+**Checked, no change needed.**
+
+- The fallback guard's write-back: every write citeproc makes onto a citation
+  was traced; the ones callers read are written back.
+- The single-item gate: missing and embedded items, reselection, Cancel and
+  Citation Explorer never change a citation's item count. The one exception,
+  a merge of two citations of the same work, is described in DECISIONS.md §2.
+- The wording removal: it applies to 41 of the 1,345 supported repository
+  styles and changes 67 renders across 13 item types, every one removing
+  duplicated "personal communication" or "letter" wording. No name was removed.
+- Narrative output: the expected values in the tests follow from each style's
+  parenthetical output. Locators, add-names disambiguation, subsequent et al.,
+  and German, French, Spanish, Dutch and Japanese locales also render
+  correctly (offline).
+- By reading the source only: delayed citation updates, document export and
+  import, changing footnote or field type in Document Preferences, Citation
+  Explorer, and a second Word command arriving while the dialog is open.
+- The earlier disappearance of the plugin after a reinstall. The empty folder
+  `extensions/staged/narrative-citations@zotero.plugin` is Firefox's marker for
+  a pending removal: a copy of the plugin under that ID had been removed. The
+  disappearance itself could not be reconstructed from what the profile still
+  holds. No way was found for an ordinary update to hide or remove the plugin.
+
+**Found, not changed.**
+
+- Authorless references lose the title's italics (APA, Harvard Cite Them Right)
+  or quotation marks (Chicago author-date, Elsevier Harvard) in narrative form.
+  Seen offline in the RTF and HTML that Word and Google Docs receive; the tests
+  check plain text, where formatting is invisible. Documented in README.
+- If an update fails after the old version has shut down, the plugin stays
+  stopped until Zotero restarts. This is in Zotero's add-on code.
+- The Narrative citation checkbox also appears in the note editor's citation
+  dialog, where it has no effect.
+- Two copies of the plugin installed under different IDs share one plugin
+  instance, so removing either stops both.
+- A prefix is placed inside the parentheses: `Smith (see 2020)`. This is
+  citeproc's composite mode.
+
+**Not verified.**
+
+- An update delivered through Zotero's update check. The repository is
+  private, so the update URL cannot be reached.
+- Shutdown's two-minute limit being reached, and a rebuild whose refill fails
+  (for example after an item is deleted).
+- The formatting loss above in an actual Word document.
+- Windows, LibreOffice and Google Docs.

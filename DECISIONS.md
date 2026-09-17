@@ -1,7 +1,8 @@
 # Design decisions
 
 Companion to `SPIKE-RESULTS.md`. Settles the two open questions in its §7, and
-records the design choices made in the pre-release audit (§4–§6).
+records the design choices made in the pre-release audit (§4–§6) and the second
+audit (§5, shutdown).
 All source references are to the shipped Zotero **10.0.2** build
 (`/Applications/Zotero.app/Contents/Resources/app/omni.ja`), not to the repo
 trunk and not to the brief. §1 was re-checked against that source in the audit;
@@ -163,6 +164,12 @@ Enforced in two places, because a citation can gain items in two ways:
   field write-back, so one check there renders and saves it as an ordinary
   citation. (Verified in Word in the audit.)
 
+One exception, found by reading Zotero's source in the second audit and not
+tried in Word: if both citations cite the same work, the merge drops the
+duplicate item. The result has one item, so it keeps the narrative flag.
+`(Smith, 2020)` typed directly before a narrative `Smith (2020)` becomes a
+single narrative citation, and the parenthetical disappears from the sentence.
+
 Not handled: the reverse order. When a narrative citation is typed directly
 before an ordinary one, the merge keeps the ordinary citation's properties, so
 the narrative one is folded into it and its wording disappears from the
@@ -207,9 +214,15 @@ next write-back. Removing it and restoring it afterwards does not work either:
 citeproc keeps the object it is given and later re-renders it directly, bypassing
 the guard, and a restored flag then renders `[NO_PRINTED_FORM]`.
 
-**Then it writes back the two fields citeproc sets on that object**:
-`sortedItems`, and `citationID` if the caller had none. Callers read them from
-the object they passed. Without this, the citation dialog's sort found
+**Then it writes back the two fields citeproc sets on that object that callers
+read**: `sortedItems`, and `citationID` if the caller had none. Callers read
+them from the object they passed. citeproc writes three more things. It sets
+`item` on each entry of `citationItems`, which reaches the caller anyway because
+the copy shares that array. It sets `index` and `noteIndex` on the copy's
+`properties`, which do not reach the caller, and nothing in Zotero reads them
+from the citation it passed. (The second audit checked every write.)
+
+Without the write-back, the citation dialog's sort found
 `io.citation.sortedItems` undefined, threw inside Accept, and left the dialog
 and Zotero's Word integration hung until restart. That happened when editing a
 flagged citation under any unsupported style that sorts its citations, which
@@ -244,8 +257,10 @@ guard.
 - **Then every open document's engine is rebuilt** through the patched path,
   after waiting for any running Word command to finish. This is the same call
   Zotero makes after a style update. It is meant to cover installing, enabling
-  or upgrading the plugin while a document is open; enabling was checked in
-  Word, upgrading has not been.
+  or upgrading the plugin while a document is open. Checked in Word after
+  enabling the plugin, and after installing a new build over an older one with a
+  document open. An update delivered by Zotero's own update check has not been
+  tried.
 - **Each rebuilt engine is then filled with the document's citations.** A new
   engine starts empty, and Zotero only refills it on a forced update such as
   Refresh: its flag for "rebuild the processor" is cleared at the start of the
