@@ -73,8 +73,11 @@ export function installFallbackGuard(
       // citation dialog's sort (citationDialog.js:2324) reads
       // io.citation.sortedItems, finds it undefined, and throws inside
       // accept() -- leaving the dialog and Zotero's Word integration hung
-      // until restart. These are the only two fields citeproc writes onto the
-      // citation in processCitationCluster and setCitationId (10.0.2).
+      // until restart. These are the only fields citeproc writes onto the
+      // citation that callers read (10.0.2). It also sets `item` on each
+      // citationItems entry, which reaches the caller through the shared array,
+      // and `index`/`noteIndex` on the copy's properties, which nothing in
+      // Zotero reads from the citation it passed.
       if ("sortedItems" in copy) live.sortedItems = copy.sortedItems;
       if (!live.citationID && copy.citationID) {
         live.citationID = copy.citationID;

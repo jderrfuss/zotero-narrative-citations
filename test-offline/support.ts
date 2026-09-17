@@ -4,7 +4,10 @@
  * citeproc@2.4.63 from npm is processor version 1.4.61, the version bundled in
  * Zotero 10.0.2. Rendering the fixture styles and items through it and through
  * the citeproc.js inside Zotero 10.0.2 gave identical output (10,872 renders
- * across 302 styles, checked during the pre-release audit).
+ * across 302 styles, checked during the pre-release audit). The code is not
+ * identical: Zotero's copy has changes of its own, e.g. previewCitationCluster
+ * restores its state when rendering throws, which npm's does not. Tests of
+ * what happens after an error say nothing about Zotero's copy.
  *
  * Zotero parses style XML with Firefox's DOMParser; here @xmldom/xmldom stands
  * in for it. Structural results match, but parse-error behaviour differs.
