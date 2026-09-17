@@ -243,8 +243,16 @@ guard.
   and held up every plugin loaded after it.
 - **Then every open document's engine is rebuilt** through the patched path,
   after waiting for any running Word command to finish. This is the same call
-  Zotero makes after a style update. It also covers installing, enabling or
-  upgrading the plugin while a document is open.
+  Zotero makes after a style update. It is meant to cover installing, enabling
+  or upgrading the plugin while a document is open; enabling was checked in
+  Word, upgrading has not been.
+- **Each rebuilt engine is then filled with the document's citations.** A new
+  engine starts empty, and Zotero only refills it on a forced update such as
+  Refresh: its flag for "rebuild the processor" is cleared at the start of the
+  next command, before it is checked. Found in the second audit: after a
+  rebuild, the next Add/Edit Citation failed with "Zotero experienced an error
+  updating your document" until the user clicked Refresh. Zotero's own
+  rebuild after a style update has the same gap.
 
 The window cannot be closed from a plugin: whatever loads before it, and
 Zotero's own startup, still come first. README tells users to let Zotero finish

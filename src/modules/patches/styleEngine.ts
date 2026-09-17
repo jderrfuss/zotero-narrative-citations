@@ -312,6 +312,16 @@ export function installStyleEnginePatches(): void {
  * (Zotero.Integration.resetSessionStyles, integration.js:225). Never swaps an
  * engine under a running command: waits for it to finish first, and re-checks
  * before each session in case another has started.
+ *
+ * Each new engine is then filled with the session's citations. A new engine
+ * starts with an empty registry, and setData only marks the session for a
+ * rebuild (rebuildCiteprocState). The next command clears that mark before
+ * checking it -- updateFromDocument calls resetRequest first (integration.js:
+ * 1161, 1914) -- and only a forced update (Refresh, Document Preferences, the
+ * bibliography commands) sets it again. So without filling it here, the next
+ * Add/Edit Citation asked citeproc about citations it did not have: the preview
+ * failed and Accept threw "Zotero experienced an error updating your document"
+ * until the user clicked Refresh. (Observed in Word, audit 2.)
  */
 export async function rebuildExistingIntegrationEngines(): Promise<void> {
   const Integration = (Zotero as any)?.Integration;
@@ -330,7 +340,29 @@ export async function rebuildExistingIntegrationEngines(): Promise<void> {
       // setData logs and throws for a style that is no longer installed; the
       // session keeps its old engine, as it would in Zotero's own reset.
       Zotero.logError(e as Error);
+      continue;
     }
+    restoreSessionCitations(session);
+  }
+}
+
+/**
+ * Fill a session's new engine with the citations the session already holds,
+ * as updateFromDocument does when rebuildCiteprocState is set
+ * (integration.js:1192). Synchronous, so no command can start part-way through.
+ *
+ * If it fails -- an item deleted from the library since the last command, say
+ * -- the engine is left empty, which is the state before this existed: the next
+ * Add/Edit Citation fails until the user clicks Refresh. Nothing is written to
+ * the document either way.
+ */
+function restoreSessionCitations(session: any): void {
+  if (typeof session?.restoreProcessorState !== "function") return;
+  try {
+    session.restoreProcessorState();
+    session.rebuildCiteprocState = false;
+  } catch (e) {
+    Zotero.logError(e as Error);
   }
 }
 
