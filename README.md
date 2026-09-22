@@ -17,6 +17,27 @@ APA's `&`/`and` rule wrong unless you remember it.
 > audited, but only on macOS with Word, and only by one person. Do not point it
 > at a manuscript you care about without a backup.
 
+## Zotero is building this in
+
+Zotero has a draft implementation of narrative citations:
+[zotero/zotero#6041](https://github.com/zotero/zotero/pull/6041), opened in
+September 2026, against the long-running request
+[#1580](https://github.com/zotero/zotero/issues/1580). It is a draft, with no
+announced release, so this plugin is a stopgap rather than a long-term
+arrangement.
+
+Their design differs from this one. Zotero writes a narrative citation as
+**two** adjacent fields — an author-only head and a suppress-author remainder —
+where this plugin writes a single citation carrying
+`properties.mode = "composite"`. Both use the same `properties.mode` slot, which
+Zotero's PR also adds to the saved-properties allowlist, but the values and the
+structure are different.
+
+**So citations written with this plugin will not become native narrative
+citations when Zotero ships the feature.** They keep working while the plugin is
+installed. What stock Zotero will make of them is not yet settled, and this
+plugin may gain a converter once the format is final.
+
 ## What it does
 
 - Adds a **Narrative citation** checkbox to the citation dialog, next to

@@ -137,12 +137,44 @@ what Accept will save; ticking it restores the flag. See `modeToPersist()` in
 `src/modules/narrative.ts`; results B2/B3 in `scripts/m2-join.js` check that the
 value is dropped, not that it cannot occur.
 
-### What would change this
+### What would change this — answered, September 2026
 
-Only 7.2. If the Zotero developers say they intend a different slot, matching
-them beats every argument above — the point of asking is to avoid a private
-format. `properties.mode` is the _least_ private option available, which is part
-of why it is the right bet while the question is outstanding.
+Asked on the zotero-dev list. Zotero replied that they are working on it, in
+draft PR [zotero/zotero#6041](https://github.com/zotero/zotero/pull/6041)
+("In-text citations with author outside parentheses"). Reading that PR:
+
+- **The slot is the same.** It adds `"mode"` to `saveProperties`, the
+  citation-level allowlist this plugin patches, and `"is-narrative-head"` to the
+  per-item one.
+- **The structure is not.** A narrative citation there is **two adjacent
+  fields**: a head with `mode: "author-only"` holding the single narrative item,
+  and a remainder with `mode: "suppress-author"` holding the rest, the head's
+  item tagged `is-narrative-head`. The two are paired by adjacency, so copying
+  or deleting one behaves sensibly.
+- **`"composite"` is not used at all**; the word does not appear in the PR.
+- **They synthesize an `<intext>` element too**
+  (`Zotero.Style.prototype._addInText`), but only for APA and for numeric
+  styles, and only by cloning a macro named `author-intext` when the style has
+  one.
+
+**So the key was the right bet and the shape was not.** Citations written by
+this plugin are one field carrying `properties.mode = "composite"`, which is not
+what Zotero will write.
+
+**No change for now.** Writing head/remainder pairs means reproducing the field
+pairing, splitting and recoupling logic that is most of that PR, against a
+format that is still a draft and can change. The plugin stays as it is while
+the PR is unreleased; a converter for existing documents is the obvious move
+once the format is final. README says so.
+
+One thing worth sending back, from rendering their `_addInText` against the
+`apa.csl` shipped with 10.0.2 (which has no `author-intext` macro, so it takes
+the generic branch): a three-author work renders as
+`Alvarez, Brown, and Chen (2023)` rather than APA's `Alvarez et al. (2023)`, and
+a personal communication as `Novak` rather than `P. Novak`. The attributes they
+copy onto `<intext>` do not reach the names — the same constraint this plugin
+works around by writing them onto the `<name>` elements inside the cloned macro
+(SPIKE-RESULTS §4.6).
 
 ---
 
