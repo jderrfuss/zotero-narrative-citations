@@ -17,7 +17,9 @@ build
 logs
 
 # Test artefacts: working copies of the test document, and Word lock files.
-# assets/test_document.docx is the pristine original and IS tracked.
+# assets/test_document.docx (all citations parenthetical) and
+# assets/test_document_narrative.docx (citations 1 and 2 narrative) are the
+# pristine originals and ARE tracked.
 spikes/*_working_copy.docx
 assets/audit-copy.docx
 ~$*

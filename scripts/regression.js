@@ -18,6 +18,10 @@
  *   1. Install the build under test and restart Zotero.
  *   2. For phase 4 (optional): open a COPY of assets/test_document.docx in
  *      Word as the front document. Never the original.
+ *      That document's five citations are all parenthetical, which Part 2
+ *      below starts from. assets/test_document_narrative.docx is the same
+ *      document with citations 1 and 2 already narrative, for checks that need
+ *      one to exist -- e.g. what an update landing mid-Refresh does to them.
  *   3. Tools → Developer → Run JavaScript, "Run as async function" TICKED.
  *
  * Expected narrative output is the same table as EXPECTED in
